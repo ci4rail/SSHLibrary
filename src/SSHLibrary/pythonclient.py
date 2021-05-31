@@ -460,6 +460,7 @@ class RemoteCommand(AbstractCommand):
             while time.time() < end_time:
                 if self._shell.status_event.wait(0):
                     break
+                time.sleep(0.01)  # lets not be so busy
                 self._output_logging(stderr_filebuffer, stderrs, stdout_filebuffer, stdouts, output_during_execution)
             if not self._shell.status_event.isSet():
                 if is_truthy(output_if_timeout):
