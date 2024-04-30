@@ -269,7 +269,8 @@ class PythonSSHClient(AbstractSSHClient):
 
         if forward_agent:
             paramiko.agent.AgentRequestHandler(new_shell)
-            
+        
+        new_shell.get_pty()
         cmd.run_in(new_shell, sudo, sudo_password, invoke_subsystem)
         return cmd
 
@@ -489,14 +490,14 @@ class RemoteCommand(AbstractCommand):
                     not self._shell.active)
 
     def _execute(self):
-        self._shell.exec_command(self._command, get_pty=True)
+        self._shell.exec_command(self._command)
 
     def _execute_with_sudo(self, sudo_password=None):
         command = 'sudo ' + self._command.decode(self._encoding)
         if sudo_password is None:
-            self._shell.exec_command(command, get_pty=True)
+            self._shell.exec_command(command)
         else:
-            self._shell.exec_command('echo %s | sudo --stdin --prompt "" %s' % (sudo_password, command), get_pty=True)
+            self._shell.exec_command('echo %s | sudo --stdin --prompt "" %s' % (sudo_password, command))
 
     def _invoke(self):
         self._shell.invoke_subsystem(self._command)
