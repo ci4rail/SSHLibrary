@@ -489,14 +489,14 @@ class RemoteCommand(AbstractCommand):
                     not self._shell.active)
 
     def _execute(self):
-        self._shell.exec_command(self._command)
+        self._shell.exec_command(self._command, get_pty=True)
 
     def _execute_with_sudo(self, sudo_password=None):
         command = 'sudo ' + self._command.decode(self._encoding)
         if sudo_password is None:
-            self._shell.exec_command(command)
+            self._shell.exec_command(command, get_pty=True)
         else:
-            self._shell.exec_command('echo %s | sudo --stdin --prompt "" %s' % (sudo_password, command))
+            self._shell.exec_command('echo %s | sudo --stdin --prompt "" %s' % (sudo_password, command), get_pty=True)
 
     def _invoke(self):
         self._shell.invoke_subsystem(self._command)
