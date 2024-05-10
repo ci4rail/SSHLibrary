@@ -333,8 +333,10 @@ class AbstractSSHClient(object):
             `stdout` and `stderr` as strings and `return_code` as an integer.
         """
         self.start_command(command, sudo, sudo_password, invoke_subsystem, forward_agent)
-        return self.read_command_output(timeout=timeout, output_during_execution=output_during_execution,
+        stdout, stderr, rc = self.read_command_output(timeout=timeout, output_during_execution=output_during_execution,
                                         output_if_timeout=output_if_timeout)
+        stdout.rstrip()
+        return stdout, stderr, rc
 
     def start_command(self, command, sudo=False,  sudo_password=None, invoke_subsystem=False, forward_agent=False):
         """Starts the execution of the `command` on the remote host.
