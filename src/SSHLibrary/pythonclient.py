@@ -270,7 +270,7 @@ class PythonSSHClient(AbstractSSHClient):
         if forward_agent:
             paramiko.agent.AgentRequestHandler(new_shell)
         
-        #new_shell.get_pty()
+        new_shell.get_pty()
         cmd.run_in(new_shell, sudo, sudo_password, invoke_subsystem)
         return cmd
 
