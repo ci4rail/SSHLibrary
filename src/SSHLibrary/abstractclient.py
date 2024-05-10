@@ -336,7 +336,7 @@ class AbstractSSHClient(object):
         self.start_command(command, sudo, sudo_password, invoke_subsystem, forward_agent)
         stdout, stderr, rc = self.read_command_output(timeout=timeout, output_during_execution=output_during_execution,
                                         output_if_timeout=output_if_timeout)
-        stdout.rstrip()
+        stdout = stdout.rstrip()
         return stdout, stderr, rc
 
     def start_command(self, command, sudo=False,  sudo_password=None, invoke_subsystem=False, forward_agent=False):
