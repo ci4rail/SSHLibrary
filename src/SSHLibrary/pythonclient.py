@@ -17,6 +17,8 @@ import os
 import ntpath
 import time
 
+import signal
+
 try:
     import paramiko
 except ImportError:
@@ -436,10 +438,26 @@ class SCPTransferClient(SFTPClient):
 class RemoteCommand(AbstractCommand):
 
     def read_outputs(self, timeout=None, output_during_execution=False, output_if_timeout=False):
+        self.original_sigint_handler = signal.signal(signal.SIGINT, self.handle_signal)
+        self.original_sigterm_handler = signal.signal(signal.SIGTERM, self.handle_signal)
+        self.original_sigquit_handler = signal.signal(signal.SIGQUIT, self.handle_signal)
         stderr, stdout = self._receive_stdout_and_stderr(timeout, output_during_execution, output_if_timeout)
         rc = self._shell.recv_exit_status()
         self._shell.close()
+        # restore signal handlers
+        signal.signal(signal.SIGINT, self.original_sigint_handler)
+        signal.signal(signal.SIGTERM, self.original_sigterm_handler)
+        signal.signal(signal.SIGQUIT, self.original_sigquit_handler)
         return stdout, stderr, rc
+    
+    def handle_signal(self, signum, frame):
+        self._shell.close()
+        if signum == signal.SIGINT:
+            self.original_sigint_handler(signum, frame)
+        elif signum == signal.SIGTERM:
+            self.original_sigterm_handler(signum, frame)
+        elif signum == signal.SIGQUIT:
+            self.original_sigquit_handler(signum, frame)
 
     def _receive_stdout_and_stderr(self, timeout=None, output_during_execution=False, output_if_timeout=False):
         stdout_filebuffer = self._shell.makefile('rb', -1)
