@@ -17,6 +17,8 @@ import os
 import ntpath
 import time
 
+import signal
+
 try:
     import paramiko
 except ImportError:
@@ -269,7 +271,8 @@ class PythonSSHClient(AbstractSSHClient):
 
         if forward_agent:
             paramiko.agent.AgentRequestHandler(new_shell)
-            
+        
+        new_shell.get_pty()
         cmd.run_in(new_shell, sudo, sudo_password, invoke_subsystem)
         return cmd
 
@@ -435,10 +438,26 @@ class SCPTransferClient(SFTPClient):
 class RemoteCommand(AbstractCommand):
 
     def read_outputs(self, timeout=None, output_during_execution=False, output_if_timeout=False):
+        self.original_sigint_handler = signal.signal(signal.SIGINT, self.handle_signal)
+        self.original_sigterm_handler = signal.signal(signal.SIGTERM, self.handle_signal)
+        self.original_sigquit_handler = signal.signal(signal.SIGQUIT, self.handle_signal)
         stderr, stdout = self._receive_stdout_and_stderr(timeout, output_during_execution, output_if_timeout)
         rc = self._shell.recv_exit_status()
         self._shell.close()
+        # restore signal handlers
+        signal.signal(signal.SIGINT, self.original_sigint_handler)
+        signal.signal(signal.SIGTERM, self.original_sigterm_handler)
+        signal.signal(signal.SIGQUIT, self.original_sigquit_handler)
         return stdout, stderr, rc
+    
+    def handle_signal(self, signum, frame):
+        self._shell.close()
+        if signum == signal.SIGINT:
+            self.original_sigint_handler(signum, frame)
+        elif signum == signal.SIGTERM:
+            self.original_sigterm_handler(signum, frame)
+        elif signum == signal.SIGQUIT:
+            self.original_sigquit_handler(signum, frame)
 
     def _receive_stdout_and_stderr(self, timeout=None, output_during_execution=False, output_if_timeout=False):
         stdout_filebuffer = self._shell.makefile('rb', -1)
@@ -448,7 +467,7 @@ class RemoteCommand(AbstractCommand):
         while self._shell_open():
             self._flush_stdout_and_stderr(stderr_filebuffer, stderrs, stdout_filebuffer, stdouts, timeout,
                                           output_during_execution, output_if_timeout)
-            time.sleep(0.01)  # lets not be so busy
+            time.sleep(0.5)  # lets not be so busy
         stdout = (b''.join(stdouts) + stdout_filebuffer.read()).decode(self._encoding)
         stderr = (b''.join(stderrs) + stderr_filebuffer.read()).decode(self._encoding)
         return stderr, stdout
@@ -460,6 +479,7 @@ class RemoteCommand(AbstractCommand):
             while time.time() < end_time:
                 if self._shell.status_event.wait(0):
                     break
+                time.sleep(0.5)  # lets not be so busy
                 self._output_logging(stderr_filebuffer, stderrs, stdout_filebuffer, stdouts, output_during_execution)
             if not self._shell.status_event.isSet():
                 if is_truthy(output_if_timeout):
